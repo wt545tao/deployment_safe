@@ -26,7 +26,7 @@ for script in deploy.sh scripts/*.sh tests/*.sh; do
 done
 
 echo "== python compile =="
-if $PY -m py_compile auth-service/app.py auth-service/verify.py auth-service/manage_tokens.py app/app.py examples/sample-app/app.py; then
+if $PY -m py_compile auth-service/app.py auth-service/verify.py auth-service/manage_tokens.py app/app.py examples/sample-app/app.py examples/musicdl-player/app.py examples/musicdl-player/serve.py; then
     echo "OK   python sources compile"
 else
     echo "FAIL python sources"
@@ -51,12 +51,14 @@ fi
 
 echo "== docker-compose yaml =="
 if $PY -c "import yaml" >/dev/null 2>&1; then
-    if $PY -c "import yaml; yaml.safe_load(open('docker-compose.yml', encoding='utf-8'))"; then
-        echo "OK   docker-compose.yml is valid yaml"
-    else
-        echo "FAIL docker-compose.yml"
-        FAILED=1
-    fi
+    for f in docker-compose.yml examples/compose.override.yml examples/compose.musicdl.override.yml; do
+        if $PY -c "import yaml,sys; yaml.safe_load(open(sys.argv[1], encoding='utf-8'))" "$f"; then
+            echo "OK   $f is valid yaml"
+        else
+            echo "FAIL $f"
+            FAILED=1
+        fi
+    done
 else
     echo "SKIP pyyaml not installed"
 fi

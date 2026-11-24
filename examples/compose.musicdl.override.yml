@@ -1,0 +1,10 @@
+services:
+  app:
+    image: ${APP_IMAGE:-safe-musicdl-player:local}
+    build:
+      context: ./examples/musicdl-player
+    volumes:
+      - musicdl_downloads:/srv/downloads
+
+volumes:
+  musicdl_downloads:

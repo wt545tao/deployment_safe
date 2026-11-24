@@ -4,10 +4,18 @@
 
 ```
 examples/
-├── sample-app/            示例应用（标准库，无第三方依赖）
+├── sample-app/                   示例应用（标准库，无第三方依赖）
 │   ├── app.py
 │   └── Dockerfile
-├── compose.override.yml   用示例应用替换默认 demo 的 compose 覆盖文件
+├── musicdl-player/               musicdl 音乐播放器部署样例
+│   ├── app.py                    播放器 Flask 后端（musicdl 官方样例）
+│   ├── serve.py                  容器入口：0.0.0.0:8080 + /healthz
+│   ├── static/                   前端资源
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── README.md                 安装与部署说明
+├── compose.override.yml          用示例应用替换默认 demo 的 compose 覆盖文件
+├── compose.musicdl.override.yml  用 musicdl 播放器替换默认 demo 的覆盖文件
 └── README.md
 ```
 
@@ -92,7 +100,20 @@ curl -k -H "X-Auth-Token: <TOKEN>" https://<server>/api/info
 curl -k https://127.0.0.1/healthz
 ```
 
-## 6. 常见问题
+## 6. 示例二：musicdl 音乐播放器
+
+`examples/musicdl-player/` 演示如何把真实第三方应用（musicdl 的
+`claudeai-modern-web-music-player`）接入本网关，含 musicdl 安装、镜像构建、
+非 root 运行、`/healthz` 健康检查与下载目录持久化。
+
+```bash
+COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
+  docker compose up -d --build
+```
+
+安装方式、配置项与注意事项详见 [`musicdl-player/README.md`](musicdl-player/README.md)。
+
+## 7. 常见问题
 
 - **502 Bad Gateway**：app 容器未 healthy，或没有监听 8080；查看 `docker compose logs -f app`。
 - **一直 401**：请求未携带 token/Cookie；用 `/auth/login?token=...` 或 `X-Auth-Token` 头。
