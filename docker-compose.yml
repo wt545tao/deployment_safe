@@ -1,0 +1,74 @@
+services:
+  app:
+    build: ./app
+    image: ${APP_IMAGE:-safe-app:local}
+    container_name: safe-app
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  auth:
+    build: ./auth-service
+    image: safe-auth:local
+    container_name: safe-auth
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      AUTH_DB: /data/auth.db
+      AUTH_LOG: /data/auth.log
+      SESSION_TTL: ${SESSION_TTL:-28800}
+      FAIL_WINDOW: ${FAIL_WINDOW:-600}
+      MAX_FAILS: ${MAX_FAILS:-3}
+    volumes:
+      - ./data:/data
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: safe-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+      - auth
+    networks:
+      - edge
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--no-check-certificate", "-O", "/dev/null", "https://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  edge:
+  internal:
+    internal: true

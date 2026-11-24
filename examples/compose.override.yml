@@ -1,0 +1,5 @@
+services:
+  app:
+    image: ${APP_IMAGE:-safe-app:local}
+    build:
+      context: ./examples/sample-app
