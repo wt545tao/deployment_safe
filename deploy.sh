@@ -95,18 +95,34 @@ fi
 $DC up -d --build
 $DC ps
 
-ok=0
-for _ in $(seq 1 30); do
-    status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' safe-nginx 2>/dev/null || true)"
-    if [ "$status" = "healthy" ]; then
-        ok=1
-        break
-    fi
-    sleep 2
-done
+wait_healthy() {
+    local name="$1"
+    local attempts="$2"
+    local status=""
+    for _ in $(seq 1 "$attempts"); do
+        status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null || true)"
+        if [ "$status" = "healthy" ]; then
+            return 0
+        fi
+        sleep 2
+    done
+    echo "  ${name} health: ${status:-missing}" >&2
+    return 1
+}
 
-if [ "$ok" -ne 1 ]; then
+echo "  waiting for safe-app (up to 180s)"
+if ! wait_healthy safe-app 90; then
+    echo "ERROR: safe-app did not become healthy" >&2
+    $DC ps || true
+    $DC logs --tail=80 app || true
+    exit 1
+fi
+
+echo "  waiting for safe-nginx (up to 120s)"
+if ! wait_healthy safe-nginx 60; then
     echo "ERROR: safe-nginx did not become healthy, check: $DC logs nginx" >&2
+    $DC ps || true
+    $DC logs --tail=80 nginx || true
     exit 1
 fi
 

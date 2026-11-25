@@ -18,6 +18,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 20s
 
   auth:
     build:
@@ -47,6 +48,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
   nginx:
     image: ${NGINX_IMAGE:-nginx:1.27-alpine}

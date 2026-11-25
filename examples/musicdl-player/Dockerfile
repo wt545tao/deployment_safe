@@ -11,7 +11,9 @@ ARG MUSICDL_SPEC="musicdl>=2.12"
 ARG PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 ARG PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
 
-RUN useradd --system --uid 10001 appuser
+RUN useradd --system --uid 10001 --create-home --home-dir /home/appuser appuser \
+    && mkdir -p /home/appuser \
+    && chown appuser:appuser /home/appuser
 
 WORKDIR /srv
 
@@ -25,6 +27,8 @@ COPY app.py serve.py ./
 COPY static ./static
 
 RUN mkdir -p /srv/downloads && chown -R appuser:appuser /srv
+
+ENV HOME=/home/appuser
 
 USER appuser
 

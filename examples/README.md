@@ -141,6 +141,23 @@ sudo bash examples/musicdl-player/deploy-oneclick.sh
 ## 8. 常见问题
 
 - **502 Bad Gateway**：app 容器未 healthy，或没有监听 8080；查看 `docker compose logs -f app`。
+- **`/healthz` 502 且 `deploy.sh` 报 `safe-nginx did not become healthy`**：502 表示 nginx 连不上
+  `app:8080`，根因在 app 一侧，按顺序排查：
+
+  ```bash
+  docker compose ps
+  docker inspect -f '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' safe-app
+  docker compose logs --tail=100 app
+  ```
+
+  nginx 已改为运行时通过 Docker DNS 解析 upstream（`resolver 127.0.0.11` + 变量 `proxy_pass`），
+  重建 app 后不会再因为缓存旧容器 IP 而 502；`deploy.sh` 也会先等 app healthy，失败时自动输出 app 日志。
+  若 app 日志出现 `ModuleNotFoundError: No module named 'musicdl'`，说明镜像里的依赖没装好，
+  用 `docker compose build --no-cache app` 重建。
+- **app 日志 `Permission denied: '/home/appuser'`**：musicdl 在 import 时就调用
+  `platformdirs.user_log_dir()` 并创建 `~/.local/state/musicdl/log`。镜像已改为
+  `useradd --system --uid 10001 --create-home --home-dir /home/appuser` 并显式 chown 家目录；
+  旧镜像需重建后才会生效：`docker compose build --no-cache app && docker compose up -d`。
 - **一直 401**：请求未携带 token/Cookie；用 `/auth/login?token=...` 或 `X-Auth-Token` 头。
 - **连接被重置（无响应）**：同一 IP 在 `FAIL_WINDOW` 内无 token 访问超过 `MAX_FAILS` 次，被限流忽略；等待窗口结束或执行 `bash scripts/token_manager.sh reset <ip>`。
 - **证书告警**：默认是自签证书，公网请替换 `certs/` 下的证书。
