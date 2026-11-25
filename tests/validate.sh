@@ -16,7 +16,7 @@ fi
 FAILED=0
 
 echo "== shell syntax =="
-for script in deploy.sh scripts/*.sh tests/*.sh; do
+for script in deploy.sh scripts/*.sh tests/*.sh examples/*/*.sh; do
     if bash -n "$script"; then
         echo "OK   $script"
     else
@@ -61,6 +61,20 @@ if $PY -c "import yaml" >/dev/null 2>&1; then
     done
 else
     echo "SKIP pyyaml not installed"
+fi
+
+echo "== docker registry examples =="
+if $PY -c "import json; json.load(open('examples/docker-registry/daemon.aliyun.json', encoding='utf-8')); json.load(open('examples/docker-registry/daemon.huawei.json', encoding='utf-8'))"; then
+    echo "OK   daemon json examples"
+else
+    echo "FAIL daemon json examples"
+    FAILED=1
+fi
+if bash -c 'set -e; for f in examples/docker-registry/env.*.example; do ( set -a; . "$f"; set +a ); done'; then
+    echo "OK   env examples are shell-safe"
+else
+    echo "FAIL env examples are not shell-safe"
+    FAILED=1
 fi
 
 echo "== fail2ban filter =="

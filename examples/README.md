@@ -14,6 +14,14 @@ examples/
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── README.md                 安装与部署说明
+├── docker-registry/              Docker 国内源配置样例（阿里/华为/清华）
+│   ├── README.md
+│   ├── env.aliyun.example
+│   ├── env.huawei.example
+│   ├── env.tuna.example
+│   ├── daemon.aliyun.json
+│   ├── daemon.huawei.json
+│   └── install-docker-ce.sh
 ├── compose.override.yml          用示例应用替换默认 demo 的 compose 覆盖文件
 ├── compose.musicdl.override.yml  用 musicdl 播放器替换默认 demo 的覆盖文件
 └── README.md
@@ -113,7 +121,17 @@ COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
 
 安装方式、配置项与注意事项详见 [`musicdl-player/README.md`](musicdl-player/README.md)。
 
-## 7. 常见问题
+## 7. Docker 国内源配置
+
+`examples/docker-registry/` 提供阿里云、华为云、清华源的配置样例：
+
+- 阿里云 / 华为云：`registry-mirrors` 镜像加速（需控制台获取专属地址）；
+- 清华 TUNA：Docker 引擎安装源（`docker-ce` 的 apt/yum 仓库），不提供 Docker Hub 加速；
+- `install-docker-ce.sh`：`sudo MIRROR=tuna|aliyun|huawei` 一键换源安装 Docker。
+
+详见 [`docker-registry/README.md`](docker-registry/README.md)。
+
+## 8. 常见问题
 
 - **502 Bad Gateway**：app 容器未 healthy，或没有监听 8080；查看 `docker compose logs -f app`。
 - **一直 401**：请求未携带 token/Cookie；用 `/auth/login?token=...` 或 `X-Auth-Token` 头。

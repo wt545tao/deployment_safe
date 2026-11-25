@@ -18,6 +18,7 @@ DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 SETUP_FIREWALL="${SETUP_FIREWALL:-0}"
 SETUP_FAIL2BAN="${SETUP_FAIL2BAN:-0}"
+SETUP_DOCKER_MIRROR="${SETUP_DOCKER_MIRROR:-0}"
 
 if ! command -v curl >/dev/null 2>&1; then
     echo "ERROR: curl is required" >&2
@@ -60,6 +61,14 @@ case "${ID:-}" in
         echo "WARN: unknown distribution ${ID:-}, install manually: $PKGS" >&2
         ;;
 esac
+
+if [ "$SETUP_DOCKER_MIRROR" = "1" ]; then
+    echo "configuring docker registry mirrors (SETUP_DOCKER_MIRROR=1)"
+    DOCKER_REGISTRY_MIRRORS="${DOCKER_REGISTRY_MIRRORS:-https://docker.m.daocloud.io,https://dockerproxy.net}" \
+        bash "$DEPLOY_DIR/scripts/docker_mirror.sh"
+else
+    echo "skipping docker registry mirror configuration (SETUP_DOCKER_MIRROR=0)"
+fi
 
 if [ "$SETUP_FIREWALL" = "1" ]; then
     echo "configuring ufw (SETUP_FIREWALL=1)"

@@ -52,21 +52,56 @@ PORT=8080 python serve.py
 
 ## 3. 通过 deployment_safe 部署
 
+### 方式 A：临时指定覆盖文件（只影响本次命令）
+
 在项目根目录执行：
 
 ```bash
+# 直接用 compose
 COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
   docker compose up -d --build
+
+# 或走 deploy.sh；注意 sudo 默认清空环境，变量要放在 sudo 后面
+sudo COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
+  bash deploy.sh
 ```
 
-或在 `.env` 中固定覆盖文件后执行 `sudo bash deploy.sh`：
+### 方式 B：写进 `.env`（长期生效）
 
-```bash
-COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml
-```
+`.env` 是项目根目录的环境变量文件：`deploy.sh` 会 `source` 它并 `export` 其中所有变量，
+所以 `COMPOSE_FILE`、`APP_IMAGE` 写进去后，`deploy.sh` 里的 `docker compose up` 每次都会带上覆盖文件。
+
+操作步骤：
+
+1. 确认 `.env` 已存在（`deploy.sh` **只在 `.env` 不存在时生成**，已存在则不会覆盖）：
+
+   ```bash
+   ls -l .env || cp .env.example .env    # 若新建，记得把 SECRET_KEY 换成 openssl rand -hex 32
+   chmod 600 .env
+   ```
+
+2. 追加两行：
+
+   ```bash
+   cat >> .env <<'EOF'
+   APP_IMAGE=safe-musicdl-player:local
+   COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml
+   EOF
+   ```
+
+3. 正常部署：
+
+   ```bash
+   sudo bash deploy.sh
+   ```
+
+> 说明：`deploy.sh` 内部是 `set -a; . ./.env; set +a`，因此 `.env` 中新增的 `COMPOSE_FILE`
+> 会被导出给后续的 `docker compose`。若绕过 `deploy.sh` 直接手敲 `docker compose up`，
+> 请改用方式 A 的命令行前缀或 `docker compose -f docker-compose.yml -f examples/compose.musicdl.override.yml up -d --build`。
+
+### 覆盖文件做了什么
 
 覆盖文件做了两件事：
-
 1. 把 `app` 服务的构建上下文指向 `examples/musicdl-player`；
 2. 为下载目录挂载具名卷 `musicdl_downloads:/srv/downloads`，重建容器不丢文件。
 

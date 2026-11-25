@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -31,7 +31,11 @@ fi
 
 SETUP_FIREWALL="${SETUP_FIREWALL:-0}"
 SETUP_FAIL2BAN="${SETUP_FAIL2BAN:-0}"
-export SETUP_FIREWALL SETUP_FAIL2BAN
+SETUP_DOCKER_MIRROR="${SETUP_DOCKER_MIRROR:-0}"
+DOCKER_REGISTRY_MIRRORS="${DOCKER_REGISTRY_MIRRORS:-https://docker.m.daocloud.io,https://dockerproxy.net}"
+PYTHON_IMAGE="${PYTHON_IMAGE:-python:3.11-slim}"
+NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.27-alpine}"
+export SETUP_FIREWALL SETUP_FAIL2BAN SETUP_DOCKER_MIRROR DOCKER_REGISTRY_MIRRORS PYTHON_IMAGE NGINX_IMAGE
 
 echo "[1/5] initialize server environment (docker required, firewall/fail2ban optional)"
 bash scripts/init_server.sh
@@ -43,12 +47,16 @@ if [ ! -f .env ]; then
         echo "COMPOSE_PROJECT_NAME=safe"
         echo "SECRET_KEY=${SECRET}"
         echo "APP_IMAGE=${APP_IMAGE:-safe-app:local}"
+        echo "PYTHON_IMAGE=${PYTHON_IMAGE}"
+        echo "NGINX_IMAGE=${NGINX_IMAGE}"
         echo "DOMAIN=${DOMAIN:-localhost}"
         echo "SESSION_TTL=28800"
         echo "FAIL_WINDOW=600"
         echo "MAX_FAILS=3"
         echo "SETUP_FIREWALL=${SETUP_FIREWALL}"
         echo "SETUP_FAIL2BAN=${SETUP_FAIL2BAN}"
+        echo "SETUP_DOCKER_MIRROR=${SETUP_DOCKER_MIRROR}"
+        echo "DOCKER_REGISTRY_MIRRORS=${DOCKER_REGISTRY_MIRRORS}"
     } > .env
     chmod 600 .env
     echo "  generated .env with a fresh SECRET_KEY"

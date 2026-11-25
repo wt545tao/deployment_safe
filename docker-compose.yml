@@ -1,6 +1,9 @@
 services:
   app:
-    build: ./app
+    build:
+      context: ./app
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
     image: ${APP_IMAGE:-safe-app:local}
     container_name: safe-app
     restart: unless-stopped
@@ -17,7 +20,10 @@ services:
       retries: 3
 
   auth:
-    build: ./auth-service
+    build:
+      context: ./auth-service
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
     image: safe-auth:local
     container_name: safe-auth
     restart: unless-stopped
@@ -43,7 +49,7 @@ services:
       retries: 3
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ${NGINX_IMAGE:-nginx:1.27-alpine}
     container_name: safe-nginx
     restart: unless-stopped
     ports:

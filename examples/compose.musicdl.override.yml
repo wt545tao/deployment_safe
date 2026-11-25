@@ -3,6 +3,8 @@ services:
     image: ${APP_IMAGE:-safe-musicdl-player:local}
     build:
       context: ./examples/musicdl-player
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
     volumes:
       - musicdl_downloads:/srv/downloads
 

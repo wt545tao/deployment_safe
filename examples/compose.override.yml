@@ -3,3 +3,5 @@ services:
     image: ${APP_IMAGE:-safe-app:local}
     build:
       context: ./examples/sample-app
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}

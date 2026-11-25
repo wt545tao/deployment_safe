@@ -85,12 +85,64 @@ sudo SETUP_FIREWALL=1 SETUP_FAIL2BAN=1 bash deploy.sh
 | --- | --- | --- |
 | `SECRET_KEY` | 自动生成 | 会话 Cookie 签名密钥，禁止泄露 |
 | `APP_IMAGE` | `safe-app:local` | 业务镜像名 |
+| `PYTHON_IMAGE` | `python:3.11-slim` | app/auth 构建的基础镜像，可换成镜像站地址 |
+| `NGINX_IMAGE` | `nginx:1.27-alpine` | nginx 镜像，可换成镜像站地址 |
 | `DOMAIN` | `localhost` | 证书 SAN 与访问域名 |
 | `SESSION_TTL` | `28800` | 会话有效期（秒） |
 | `FAIL_WINDOW` | `600` | 无 token 访问计数窗口（秒） |
 | `MAX_FAILS` | `3` | 窗口内允许的无 token 访问次数 |
 | `SETUP_FIREWALL` | `0` | 1=由本项目配置 ufw |
 | `SETUP_FAIL2BAN` | `0` | 1=由本项目配置 fail2ban |
+| `SETUP_DOCKER_MIRROR` | `0` | 1=写入 `/etc/docker/daemon.json` 镜像加速并重启 docker |
+| `DOCKER_REGISTRY_MIRRORS` | `https://docker.m.daocloud.io,https://dockerproxy.net` | 逗号分隔的 registry-mirrors |
+
+## 4.1 Docker 镜像源无法使用
+
+如果 `docker pull` 或 `docker compose build` 拉取 `python:3.11-slim`、`nginx:1.27-alpine` 超时/被拒，按下面任一方式处理。
+
+### 方式一：配置 daemon 镜像加速（推荐先试）
+
+在 `.env` 中打开开关，并填入你所在网络可用的镜像站：
+
+```bash
+SETUP_DOCKER_MIRROR=1
+DOCKER_REGISTRY_MIRRORS=https://docker.m.daocloud.io,https://dockerproxy.net
+```
+
+然后重新执行 `sudo bash deploy.sh`。`init_server.sh` 会调用
+`scripts/docker_mirror.sh`：备份原 `/etc/docker/daemon.json`，写入 `registry-mirrors`，重启 docker。
+
+> 镜像站可用性会变化，请以你所在网络实测为准；多个地址用英文逗号分隔。
+> 若 `daemon.json` 原本不是合法 JSON，脚本会中止且不改动原文件。
+
+### 方式二：直接替换镜像地址（最可靠）
+
+不改 daemon，直接把镜像前缀换成可访问的镜像站：
+
+```bash
+# .env
+PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.11-slim
+NGINX_IMAGE=docker.m.daocloud.io/library/nginx:1.27-alpine
+```
+
+镜像地址会通过 compose 的 `build.args` 传给所有 Dockerfile 的 `FROM`，
+也会替换 `nginx` 服务的 `image`，无需改动任何 Dockerfile。
+
+### 方式三：离线导入镜像
+
+在可联网的机器上拉取并导出，再拷到服务器导入：
+
+```bash
+# 有网机器
+docker pull python:3.11-slim
+docker pull nginx:1.27-alpine
+docker save -o images.tar python:3.11-slim nginx:1.27-alpine
+
+# 服务器
+docker load -i images.tar
+```
+
+导入后保持 `PYTHON_IMAGE`/`NGINX_IMAGE` 为默认值即可，构建时直接命中本地镜像。
 
 ## 5. 授权访问
 
