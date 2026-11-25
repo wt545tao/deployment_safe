@@ -5,8 +5,17 @@ services:
       context: ./examples/musicdl-player
       args:
         PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.11-slim}
+        MUSICDL_SPEC: "${MUSICDL_SPEC:-musicdl>=2.12}"
+        PIP_INDEX_URL: "${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+        PIP_TRUSTED_HOST: "${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}"
+    networks:
+      - internal
+      - egress
     volumes:
       - musicdl_downloads:/srv/downloads
+
+networks:
+  egress:
 
 volumes:
   musicdl_downloads:

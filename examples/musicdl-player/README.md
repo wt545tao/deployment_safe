@@ -11,6 +11,7 @@ examples/musicdl-player/
 ├── static/            前端页面与静态资源
 ├── requirements.txt   flask / requests
 ├── Dockerfile         安装 musicdl + 以非 root 用户运行
+├── deploy-oneclick.sh 一键脚本：国内源探测 + 写入 .env + 构建启动
 └── .dockerignore
 examples/compose.musicdl.override.yml   把 app 服务切到本样例
 ```
@@ -51,6 +52,36 @@ PORT=8080 python serve.py
 ```
 
 ## 3. 通过 deployment_safe 部署
+
+### 方式 0：一键脚本（国内 Docker 源自动探测，推荐）
+
+```bash
+sudo bash examples/musicdl-player/deploy-oneclick.sh
+```
+
+脚本依次完成：
+
+1. 未安装 docker 时，用国内引擎源安装 docker-ce（`--engine-mirror tuna|aliyun|huawei`）；
+2. 逐个探测候选 Hub 镜像前缀（先 `docker manifest inspect`，失败再 `docker pull`），
+   自动选出能拉到 `python:3.11-slim` 与 `nginx:1.27-alpine` 的前缀；
+3. 把结果写入 `.env`：`COMPOSE_FILE`、`APP_IMAGE`、`PYTHON_IMAGE`、`NGINX_IMAGE`、
+   `MUSICDL_SPEC`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST`（已有值会被覆盖，其余键保留）；
+4. 调用 `bash deploy.sh` 完成鉴权、证书、构建与启动，最后打印容器健康状态。
+
+常用参数：
+
+```bash
+sudo bash examples/musicdl-player/deploy-oneclick.sh \
+  --mirrors "https://<账号ID>.mirror.aliyuncs.com,docker.1ms.run" \
+  --pip-index https://mirrors.aliyun.com/pypi/simple \
+  --pip-host mirrors.aliyun.com \
+  --musicdl-spec "musicdl>=2.14" \
+  --with-mirror-config
+```
+
+> 候选镜像的可用性随时间变化，脚本以实际探测结果为准；全部失败时回退到 `docker.io` 并打印警告。
+> `--with-mirror-config` 会额外改写 `/etc/docker/daemon.json` 并重启 docker（会重启已有容器）。
+> musicdl 需要访问音乐平台，覆盖文件已给 `app` 追加 `egress` 网络；若不需要出网可自行移除。
 
 ### 方式 A：临时指定覆盖文件（只影响本次命令）
 
@@ -101,9 +132,11 @@ sudo COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
 
 ### 覆盖文件做了什么
 
-覆盖文件做了两件事：
+覆盖文件做了四件事：
 1. 把 `app` 服务的构建上下文指向 `examples/musicdl-player`；
-2. 为下载目录挂载具名卷 `musicdl_downloads:/srv/downloads`，重建容器不丢文件。
+2. 传入构建参数 `MUSICDL_SPEC`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST`，让 musicdl 从国内 PyPI 源安装；
+3. 为下载目录挂载具名卷 `musicdl_downloads:/srv/downloads`，重建容器不丢文件；
+4. 给 `app` 追加 `egress` 桥网络（保留 `internal`），使 musicdl 能访问音乐平台。
 
 镜像默认名 `safe-musicdl-player:local`，可用 `.env` 的 `APP_IMAGE` 覆盖。
 
@@ -114,10 +147,11 @@ sudo COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
 | 监听 | 容器内 `0.0.0.0:8080`（`serve.py`） |
 | 健康检查 | `GET /healthz` 返回 `{"status":"ok"}`，供 compose 与 nginx 使用 |
 | 端口 | 仅 `expose: 8080`，不出现在宿主机 |
-| 网络 | 仅 `internal` 网络，无法直连外网入口 |
+| 网络 | `internal`（被 nginx 访问）+ `egress`（访问音乐平台），均不发布端口 |
 | 用户 | `appuser`（uid 10001），非 root |
 | 鉴权 | 应用不处理 token，统一由 nginx `auth_request` + auth 服务负责 |
 | 下载卷 | 具名卷 `musicdl_downloads`，权限在镜像内已 chown 给 `appuser` |
+| 流式 | `location /` 已设 `proxy_buffering off`，SSE 搜索/下载进度与 Range 播放可即时透传 |
 
 ## 5. 部署后验证
 
@@ -137,9 +171,11 @@ curl -k https://127.0.0.1/healthz
 
 ## 6. 注意事项
 
-- **网络要求**：musicdl 需要能访问对应音乐平台的网络环境；`internal` 网络默认禁止出网，
-  如搜索/下载失败，需要在 `docker-compose.yml` 的 `internal` 网络或 `app` 服务上
-  按需放开出网（这会削弱隔离性，请评估后再改）。
+- **网络要求**：musicdl 需要能访问对应音乐平台的网络环境；覆盖文件已给 `app` 追加
+  `egress` 桥网络，因此可以直接出网。若不希望出网，可从覆盖文件中删掉 `egress`，
+  此时搜索/下载会失败（`internal` 网络本身禁止出网）。
+- **国内源**：基础镜像由一键脚本探测国内 Hub 镜像前缀；musicdl 与依赖从
+  `PIP_INDEX_URL` 指定的国内 PyPI 源安装。换源后无需改 Dockerfile，改 `.env` 或脚本参数即可。
 - **访问频率**：搜索会逐条解析真实音频地址，`SEARCH_SIZE_PER_SOURCE` 越大越慢，按需调整。
 - **会员音质**：需要在 `app.py` 的 `ClientManager._build()` 中按 musicdl 文档传入
   `default_search_cookies`。

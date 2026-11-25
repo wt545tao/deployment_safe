@@ -13,6 +13,7 @@ examples/
 │   ├── static/                   前端资源
 │   ├── requirements.txt
 │   ├── Dockerfile
+│   ├── deploy-oneclick.sh        国内源探测 + 一键部署
 │   └── README.md                 安装与部署说明
 ├── docker-registry/              Docker 国内源配置样例（阿里/华为/清华）
 │   ├── README.md
@@ -119,7 +120,13 @@ COMPOSE_FILE=docker-compose.yml:examples/compose.musicdl.override.yml \
   docker compose up -d --build
 ```
 
-安装方式、配置项与注意事项详见 [`musicdl-player/README.md`](musicdl-player/README.md)。
+国内网络可改用一键脚本，自动探测可用的 Docker Hub 镜像前缀、写入 `.env` 并从国内 PyPI 源安装 musicdl：
+
+```bash
+sudo bash examples/musicdl-player/deploy-oneclick.sh
+```
+
+安装方式、参数与注意事项详见 [`musicdl-player/README.md`](musicdl-player/README.md)。
 
 ## 7. Docker 国内源配置
 
